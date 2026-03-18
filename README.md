@@ -1,49 +1,51 @@
 # Quantum Credit Risk Engine using Amplitude Estimation
 
-This repository contains a practical starter project for building a credit risk analytics workflow around quantum amplitude estimation (QAE). The current implementation focuses on a fully runnable, dependency-light classical baseline, plus a quantum integration scaffold that can be connected to Qiskit later.
+This repository now includes a **directly runnable local quantum mode** for credit-risk estimation. It does not depend on Qiskit, so you can run it immediately in this environment. The local quantum mode simulates the measurement behavior of an ideal amplitude-estimation routine and uses it to estimate expected loss and VaR on a small synthetic credit portfolio, with a hybrid CVaR calculation.
 
 ## What is included
 
 - A formal project proposal in `docs/proposal.md`.
-- A small Python package in `src/quantum_credit_risk`.
+- A Python package in `src/quantum_credit_risk`.
 - Synthetic credit portfolio generation.
 - Classical Monte Carlo and exact-enumeration risk analytics.
-- A quantum-ready interface for future QAE integration.
+- A dependency-free local amplitude-estimation simulator.
+- A CLI that can run classical, quantum, or compare mode.
 - Unit tests that run with the Python standard library only.
 
 ## Quick start
 
-```bash
-python -m quantum_credit_risk.cli --portfolio-size 8 --trials 5000 --confidence 0.95
-```
-
-Or, if you prefer an explicit `PYTHONPATH`:
+Run both the classical and local quantum modes:
 
 ```bash
-PYTHONPATH=src python -m quantum_credit_risk.cli --portfolio-size 8 --trials 5000 --confidence 0.95
+PYTHONPATH=src python -m quantum_credit_risk.cli --portfolio-size 8 --trials 5000 --confidence 0.95 --mode compare
 ```
 
-## Project roadmap
+Run only the local quantum mode:
 
-1. Build the classical benchmark.
-2. Validate expected loss, VaR, and CVaR on small portfolios.
-3. Replace the `QuantumRiskEngine` stub with a Qiskit-powered iterative amplitude estimation implementation.
-4. Compare estimation accuracy, sampling cost, and runtime.
+```bash
+PYTHONPATH=src python -m quantum_credit_risk.cli --portfolio-size 8 --confidence 0.95 --mode quantum --shots 512 --num-eval-qubits 7
+```
 
-## Files
+## Modes
 
-- `docs/proposal.md`: proposal and implementation plan.
-- `src/quantum_credit_risk/portfolio.py`: borrower and portfolio models.
-- `src/quantum_credit_risk/classical.py`: Monte Carlo and exact analytics.
-- `src/quantum_credit_risk/quantum.py`: QAE integration scaffold.
-- `src/quantum_credit_risk/cli.py`: command-line demo.
-- `tests/test_risk_metrics.py`: regression-style tests for the baseline.
+- `classical`: Monte Carlo baseline.
+- `quantum`: directly runnable local amplitude-estimation mode.
+- `compare`: classical baseline + exact benchmark + local quantum mode.
 
-## Next upgrade for a real quantum run
+## What the local quantum mode does
 
-Install `qiskit` and `qiskit-finance`, then implement the `QuantumRiskEngine.estimate_*` methods using:
+- **Expected loss**: estimates each borrower's default probability with a local amplitude-estimation simulator and aggregates borrower-level loss contributions.
+- **VaR**: scans exact discrete loss thresholds and estimates the CDF at each threshold with the local amplitude-estimation simulator.
+- **CVaR**: uses the local-ae VaR estimate together with the exact tail distribution as a hybrid first-step implementation.
 
-- state preparation for the portfolio loss distribution,
-- a threshold oracle for the loss event,
-- iterative amplitude estimation for EL/VaR/CVaR.
+This is intentionally a practical bridge: you can run a quantum-style estimation workflow right now, then swap the backend to Qiskit Aer later.
+
+## If Qiskit Aer becomes available
+
+The `QuantumRiskEngine` interface is designed so the current local estimator can be replaced by:
+
+- Qiskit state preparation,
+- amplitude-estimation circuits,
+- Aer-based simulation,
+- and later hardware execution.
 

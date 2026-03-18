@@ -27,14 +27,14 @@ Build a small, reproducible credit risk analytics engine that estimates:
 - Value at Risk (VaR)
 - Conditional Value at Risk (CVaR)
 
-using a classical baseline today and a quantum-ready design for later QAE integration.
+using a classical baseline today and a directly runnable local amplitude-estimation mode, while keeping the design ready for later Qiskit Aer integration.
 
 ### Secondary objectives
 
 - Generate synthetic borrower portfolios with PD, LGD, EAD, and correlation sensitivity.
 - Support both independent-default and common-factor simulation logic.
 - Provide exact-enumeration analytics for small portfolios to validate Monte Carlo outputs.
-- Define a clean software interface for plugging in Iterative Amplitude Estimation in a later phase.
+- Define a clean software interface for upgrading the local estimator to a Qiskit Aer-backed Iterative Amplitude Estimation workflow in a later phase.
 
 ## 5. Scope
 
@@ -44,13 +44,13 @@ using a classical baseline today and a quantum-ready design for later QAE integr
 - Classical Monte Carlo estimation
 - Exact discrete enumeration for validation on small portfolios
 - CLI demo and automated tests
-- Proposal, architecture, and implementation scaffold for quantum integration
+- Proposal, architecture, and a directly runnable local amplitude-estimation mode
 
 ### Out of scope for the first version
 
 - Real banking data
 - Large-scale production optimization
-- Full Qiskit circuit implementation inside this repository version
+- Full Qiskit Aer integration inside this repository version
 - Hardware execution on noisy quantum devices
 
 ## 6. Methodology
@@ -83,14 +83,21 @@ Workflow:
 ### 6.3 Exact validation
 For small portfolios, the project enumerates all default states to compute the exact discrete loss distribution. This serves as a correctness check against Monte Carlo outputs.
 
-### 6.4 Quantum integration plan
-The software defines a `QuantumRiskEngine` interface that can later be implemented with Qiskit Finance.
+### 6.4 Direct-run quantum mode and upgrade plan
+The software now provides a dependency-free local amplitude-estimation simulator so the project is runnable immediately. This local mode approximates the measurement behavior of an ideal amplitude-estimation routine for a target probability and uses it to estimate borrower PDs and portfolio CDF thresholds.
 
-Planned QAE workflow:
+Current direct-run workflow:
+1. Generate a synthetic portfolio.
+2. Estimate borrower default probabilities with the local amplitude-estimation simulator.
+3. Aggregate borrower-level expected-loss contributions.
+4. Estimate CDF values at loss thresholds to approximate VaR.
+5. Use the estimated VaR together with the exact tail distribution for a hybrid CVaR result.
+
+Future Qiskit Aer upgrade path:
 1. Encode the portfolio loss distribution into a quantum state.
 2. Build an objective qubit that marks a loss event or payoff.
 3. Define an estimation problem for EL or threshold probability.
-4. Use Iterative Amplitude Estimation to estimate amplitudes.
+4. Use Iterative Amplitude Estimation on Aer to estimate amplitudes.
 5. Recover EL, VaR, or CVaR from the estimated amplitudes.
 
 ## 7. Deliverables
