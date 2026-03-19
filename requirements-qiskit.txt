@@ -1,0 +1,4 @@
+qiskit>=1.0
+qiskit-aer>=0.14
+qiskit-algorithms>=0.3
+qiskit-finance>=0.4

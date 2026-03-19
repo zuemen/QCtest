@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quantum-credit-risk"
+version = "0.2.0"
+description = "Starter project for credit risk analytics with a direct-run local mode and an optional Qiskit Finance stack"
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+qiskit = [
+  "qiskit>=1.0",
+  "qiskit-aer>=0.14",
+  "qiskit-algorithms>=0.3",
+  "qiskit-finance>=0.4",
+]
+
+dev = []
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
