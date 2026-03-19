@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import pi, sin
+from math import asin, pi, sin
 from random import Random
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, List, Tuple
 
 from .classical import (
     conditional_value_at_risk_from_distribution,
+    economic_capital_from_distribution,
     exact_loss_distribution,
-    value_at_risk_from_distribution,
 )
 from .portfolio import Portfolio
 
@@ -30,16 +30,12 @@ class QuantumRiskSummary:
     expected_loss: QuantumEstimate
     value_at_risk: QuantumEstimate
     conditional_value_at_risk: QuantumEstimate
+    economic_capital: QuantumEstimate
 
 
 @dataclass
 class LocalAmplitudeEstimator:
-    """A lightweight simulator of canonical amplitude-estimation outcome statistics.
-
-    This implementation is dependency-free and directly runnable in this repository.
-    It approximates the measurement behavior of an ideal amplitude estimation routine
-    for a target amplitude `a` using `num_eval_qubits` and repeated samples.
-    """
+    """Dependency-free simulator of ideal amplitude-estimation outcome statistics."""
 
     num_eval_qubits: int = 6
     shots: int = 256
@@ -71,7 +67,7 @@ class LocalAmplitudeEstimator:
         return sin(pi * best_index / scale) ** 2
 
     def _outcome_probabilities(self, probability: float) -> Dict[int, float]:
-        theta = self._principal_theta(probability)
+        theta = asin(probability ** 0.5) / pi
         scale = 2 ** self.num_eval_qubits
         probabilities: Dict[int, float] = {}
         for index in range(scale):
@@ -86,11 +82,6 @@ class LocalAmplitudeEstimator:
 
         total = sum(probabilities.values())
         return {index: value / total for index, value in probabilities.items()}
-
-    @staticmethod
-    def _principal_theta(probability: float) -> float:
-        theta = __import__("math").asin(probability ** 0.5) / pi
-        return theta
 
 
 @dataclass
@@ -108,13 +99,10 @@ class QuantumRiskEngine:
             pd_estimate = estimator.estimate(borrower.pd)
             contribution = borrower.loss_if_default * pd_estimate
             expected_loss += contribution
-            details.append(f"{borrower.borrower_id}: pd≈{pd_estimate:.4f}, loss_contribution≈{contribution:.2f}")
-        return QuantumEstimate(
-            estimate=expected_loss,
-            confidence=confidence,
-            shots=self.shots,
-            detail="; ".join(details),
-        )
+            details.append(
+                f"{borrower.borrower_id}: factors={borrower.factor_loadings}, pd≈{pd_estimate:.4f}, contribution≈{contribution:.2f}"
+            )
+        return QuantumEstimate(expected_loss, confidence, self.shots, "; ".join(details))
 
     def estimate_value_at_risk(self, portfolio: Portfolio, confidence: float = 0.95) -> QuantumEstimate:
         distribution = exact_loss_distribution(portfolio)
@@ -129,12 +117,7 @@ class QuantumRiskEngine:
                 selected = threshold
                 selected_probability = cdf_estimate
                 break
-        return QuantumEstimate(
-            estimate=selected,
-            confidence=confidence,
-            shots=self.shots,
-            detail=f"Estimated CDF at VaR threshold ≈ {selected_probability:.4f}",
-        )
+        return QuantumEstimate(selected, confidence, self.shots, f"Estimated CDF at VaR threshold ≈ {selected_probability:.4f}")
 
     def estimate_conditional_value_at_risk(self, portfolio: Portfolio, confidence: float = 0.95) -> QuantumEstimate:
         distribution = exact_loss_distribution(portfolio)
@@ -144,10 +127,20 @@ class QuantumRiskEngine:
             confidence=0.0,
         )
         return QuantumEstimate(
-            estimate=cvar,
-            confidence=confidence,
-            shots=self.shots,
-            detail=f"Hybrid estimate using local AE VaR={var_estimate.estimate:.2f} and exact tail distribution.",
+            cvar,
+            confidence,
+            self.shots,
+            f"Hybrid estimate using local AE VaR={var_estimate.estimate:.2f} and exact tail distribution.",
+        )
+
+    def estimate_economic_capital(self, portfolio: Portfolio, confidence: float = 0.95) -> QuantumEstimate:
+        distribution = exact_loss_distribution(portfolio)
+        ec = economic_capital_from_distribution(distribution, confidence)
+        return QuantumEstimate(
+            ec,
+            confidence,
+            self.shots,
+            "Economic capital defined as VaR minus expected loss, matching common credit-risk practice.",
         )
 
     def analyze(self, portfolio: Portfolio, confidence: float = 0.95) -> QuantumRiskSummary:
@@ -155,18 +148,16 @@ class QuantumRiskEngine:
             expected_loss=self.estimate_expected_loss(portfolio, confidence),
             value_at_risk=self.estimate_value_at_risk(portfolio, confidence),
             conditional_value_at_risk=self.estimate_conditional_value_at_risk(portfolio, confidence),
+            economic_capital=self.estimate_economic_capital(portfolio, confidence),
         )
 
     def implementation_notes(self) -> str:
         return (
-            "Direct-run mode uses a dependency-free local simulator of amplitude-estimation measurement statistics. "
-            "If Qiskit Aer becomes available, this interface can be swapped for an Aer-backed implementation."
+            "Direct-run mode mirrors the paper-inspired workflow at a high level: richer portfolio inputs, "
+            "floating-point LGD support, and risk metrics beyond expected loss. The true Qiskit upgrade path "
+            "still points to GaussianConditionalIndependenceModel plus IterativeAmplitudeEstimation."
         )
 
     def _estimator_for(self, purpose: str) -> LocalAmplitudeEstimator:
         purpose_offset = sum(ord(character) for character in purpose)
-        return LocalAmplitudeEstimator(
-            num_eval_qubits=self.num_eval_qubits,
-            shots=self.shots,
-            seed=self.seed + purpose_offset,
-        )
+        return LocalAmplitudeEstimator(self.num_eval_qubits, self.shots, self.seed + purpose_offset)

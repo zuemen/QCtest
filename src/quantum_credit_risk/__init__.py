@@ -6,6 +6,7 @@ from .classical import (
     exact_loss_distribution,
     expected_loss_from_distribution,
     value_at_risk_from_distribution,
+    economic_capital_from_distribution,
 )
 from .portfolio import Borrower, Portfolio, synthetic_portfolio
 from .qiskit_backend import (
@@ -33,6 +34,7 @@ __all__ = [
     "expected_loss_from_distribution",
     "value_at_risk_from_distribution",
     "conditional_value_at_risk_from_distribution",
+    "economic_capital_from_distribution",
     "LocalAmplitudeEstimator",
     "QuantumEstimate",
     "QuantumRiskSummary",

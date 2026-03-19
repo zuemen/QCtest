@@ -1,26 +1,36 @@
 # Quantum Credit Risk Engine using Amplitude Estimation
 
-This repository now has two professional layers:
+This repository now combines three layers:
 
-1. a **directly runnable local quantum mode** that works without external dependencies, and
-2. an **explicit Qiskit Finance integration path** that documents the package stack, official references, and the target backend architecture.
+1. a **classical benchmark** for portfolio-loss analytics,
+2. a **directly runnable local quantum mode** for constrained environments, and
+3. a **paper-aligned professional design** inspired by the framework in *A More General Quantum Credit Risk Analysis Framework* (Entropy 2023), together with the official Qiskit Finance tutorials.
 
-That means you can run the project immediately today, while also seeing clearly how it should evolve toward a Qiskit Finance / Qiskit Aer implementation.
+## Research references used for this design
 
-## Official Qiskit Finance references
+### Primary paper reference
+- Ferracin, Finžgar, Zheng, Woerner, Egger, and Gambella, **"A More General Quantum Credit Risk Analysis Framework"**, *Entropy* 25(4):593, 2023: https://www.mdpi.com/1099-4300/25/4/593
 
-This project is aligned with the official Qiskit Finance materials:
-
+### Official Qiskit Finance references
 - Qiskit Finance tutorials index: https://qiskit-community.github.io/qiskit-finance/tutorials/index.html
 - Quantum Amplitude Estimation tutorial: https://qiskit-community.github.io/qiskit-finance/tutorials/00_amplitude_estimation.html
 - Credit Risk Analysis tutorial: https://qiskit-community.github.io/qiskit-finance/tutorials/09_credit_risk_analysis.html
 - `GaussianConditionalIndependenceModel` API: https://qiskit-community.github.io/qiskit-finance/stubs/qiskit_finance.circuit.library.GaussianConditionalIndependenceModel.html
 
+## What changed to reflect the paper more professionally
+
+Compared with the earlier starter version, this repository now models several ideas that are closer to the paper's framing:
+
+- **multiple systemic risk factors** instead of a single scalar factor loading,
+- **floating-point LGD/EAD inputs** as first-class portfolio data,
+- explicit support for **expected loss (EL)**, **value at risk (VaR)**, **conditional value at risk (CVaR)**, and **economic capital (EC)**,
+- and clearer separation between the current local execution mode and the future Qiskit Finance/Aer workflow.
+
 ## What is included
 
 - A formal project proposal in `docs/proposal.md`.
 - A Python package in `src/quantum_credit_risk`.
-- Synthetic credit portfolio generation.
+- Synthetic multi-factor credit portfolio generation.
 - Classical Monte Carlo and exact-enumeration risk analytics.
 - A dependency-free local amplitude-estimation simulator.
 - A CLI that can run classical, quantum, or compare mode.
@@ -47,25 +57,12 @@ or:
 python -m pip install -r requirements-qiskit.txt
 ```
 
-The optional Qiskit stack declared by this repo is:
-
-- `qiskit>=1.0`
-- `qiskit-aer>=0.14`
-- `qiskit-algorithms>=0.3`
-- `qiskit-finance>=0.4`
-
 ## Quick start
 
-Run both the classical and local quantum modes:
+Run both the classical and local quantum modes on a two-factor synthetic portfolio:
 
 ```bash
-PYTHONPATH=src python -m quantum_credit_risk.cli --portfolio-size 8 --trials 5000 --confidence 0.95 --mode compare
-```
-
-Run only the local quantum mode:
-
-```bash
-PYTHONPATH=src python -m quantum_credit_risk.cli --portfolio-size 8 --confidence 0.95 --mode quantum --shots 512 --num-eval-qubits 7
+PYTHONPATH=src python -m quantum_credit_risk.cli --portfolio-size 8 --systemic-factors 2 --trials 5000 --confidence 0.95 --mode compare
 ```
 
 Show Qiskit stack status and official references:
@@ -74,34 +71,16 @@ Show Qiskit stack status and official references:
 PYTHONPATH=src python -m quantum_credit_risk.cli --show-qiskit-status
 ```
 
-## Modes
+## Target architecture
 
-- `classical`: Monte Carlo baseline.
-- `quantum`: directly runnable local amplitude-estimation mode.
-- `compare`: classical baseline + exact benchmark + local quantum mode.
+The professional target, consistent with the paper and the official Qiskit Finance credit-risk tutorial, is:
 
-## What the local quantum mode does
+- multi-factor latent credit-risk modeling,
+- realistic floating-point portfolio inputs,
+- direct loss-threshold evaluation without an oversized sum register where possible,
+- amplitude-estimation-based CDF / VaR / CVaR workflows,
+- and Aer-backed local execution when the Qiskit stack is available.
 
-- **Expected loss**: estimates each borrower's default probability with a local amplitude-estimation simulator and aggregates borrower-level loss contributions.
-- **VaR**: scans exact discrete loss thresholds and estimates the CDF at each threshold with the local amplitude-estimation simulator.
-- **CVaR**: uses the local-AE VaR estimate together with the exact tail distribution as a hybrid first-step implementation.
+## Current limitation
 
-## Target Qiskit Finance architecture
-
-This repository now explicitly tracks the official Qiskit Finance credit-risk architecture:
-
-- `GaussianConditionalIndependenceModel` for the latent credit factor model,
-- a weighted-loss construction for portfolio loss,
-- a threshold/payoff objective for CDF, VaR, or CVaR,
-- amplitude estimation using the Qiskit algorithms stack,
-- and local simulation on Aer when available.
-
-## Why this structure is more professional
-
-Instead of pretending Qiskit is already installed, the repository now:
-
-- tells you exactly which Qiskit packages belong in the stack,
-- gives you the install commands,
-- points you to the official finance tutorials and API docs,
-- and keeps a runnable fallback mode so the project remains executable in restricted environments.
-
+The repository still does **not** ship a tested Aer-backed implementation inside this environment because the container currently lacks installable Qiskit packages. The code now makes that limitation explicit while keeping the project runnable and structurally aligned with the paper's more general framework.
