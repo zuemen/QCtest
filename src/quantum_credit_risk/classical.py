@@ -5,7 +5,7 @@ from itertools import product
 from math import sqrt
 from random import Random
 from statistics import NormalDist
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Sequence
 
 from .portfolio import Portfolio
 
@@ -15,6 +15,7 @@ class RiskReport:
     expected_loss: float
     value_at_risk: float
     conditional_value_at_risk: float
+    economic_capital: float
     losses: List[float]
 
 
@@ -25,16 +26,18 @@ class MonteCarloRiskEngine:
 
     def simulate_losses(self, portfolio: Portfolio, trials: int = 10_000) -> List[float]:
         losses: List[float] = []
-        systemic = self._standard_normal
         for _ in range(trials):
-            factor = self._rng.gauss(0.0, 1.0)
+            systemic_factors = [self._rng.gauss(0.0, 1.0) for _ in range(portfolio.systemic_factor_count)]
             loss = 0.0
             for borrower in portfolio:
                 epsilon = self._rng.gauss(0.0, 1.0)
-                asset_value = sqrt(max(1e-12, borrower.rho)) * factor + sqrt(max(1e-12, 1.0 - borrower.rho)) * epsilon
-                threshold = systemic.inv_cdf(borrower.pd)
-                defaulted = asset_value < threshold
-                if defaulted:
+                systemic_component = sum(
+                    sqrt(max(0.0, loading)) * systemic_factors[index]
+                    for index, loading in enumerate(borrower.factor_loadings)
+                )
+                asset_value = systemic_component + sqrt(max(1e-12, borrower.idiosyncratic_loading)) * epsilon
+                threshold = self._standard_normal.inv_cdf(borrower.pd)
+                if asset_value < threshold:
                     loss += borrower.loss_if_default
             losses.append(round(loss, 8))
         return losses
@@ -42,10 +45,14 @@ class MonteCarloRiskEngine:
     def analyze(self, portfolio: Portfolio, trials: int = 10_000, confidence: float = 0.95) -> RiskReport:
         losses = self.simulate_losses(portfolio, trials=trials)
         distribution = distribution_from_losses(losses)
+        expected_loss = expected_loss_from_distribution(distribution)
+        value_at_risk = value_at_risk_from_distribution(distribution, confidence)
+        conditional_value_at_risk = conditional_value_at_risk_from_distribution(distribution, confidence)
         return RiskReport(
-            expected_loss=expected_loss_from_distribution(distribution),
-            value_at_risk=value_at_risk_from_distribution(distribution, confidence),
-            conditional_value_at_risk=conditional_value_at_risk_from_distribution(distribution, confidence),
+            expected_loss=expected_loss,
+            value_at_risk=value_at_risk,
+            conditional_value_at_risk=conditional_value_at_risk,
+            economic_capital=value_at_risk - expected_loss,
             losses=losses,
         )
 
@@ -95,3 +102,7 @@ def conditional_value_at_risk_from_distribution(distribution: Dict[float, float]
         return var
     tail_expectation = sum(loss * probability for loss, probability in distribution.items() if loss >= var)
     return tail_expectation / tail_probability
+
+
+def economic_capital_from_distribution(distribution: Dict[float, float], confidence: float = 0.95) -> float:
+    return value_at_risk_from_distribution(distribution, confidence) - expected_loss_from_distribution(distribution)
